@@ -1,0 +1,151 @@
+/* =====================================================================
+   Thème commun reveal.js + remark — « Vector Databases »
+   Les mêmes classes servent aux deux moteurs ; seules les tailles de base diffèrent.
+   ===================================================================== */
+:root {
+  --bg: #ffffff;
+  --ink: #161a22;
+  --muted: #5b6272;
+  --line: #e4e7ee;
+  --soft: #f4f6fa;
+  --accent: #3949ab;
+  --accent-soft: #e8eafb;
+  --pg: #2f6690;
+  --pg-soft: #e5eef6;
+  --ch: #9a7400;
+  --ch-soft: #fff4c2;
+  --ch-strong: #f6d13a;
+  --good: #1f8a55;
+  --bad: #c0392b;
+  --warn: #b26a00;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+
+/* ------------------------------------------------------------- bases par moteur */
+.reveal-viewport, body.remark-container { background: var(--bg); }
+.reveal { font-family: var(--sans); font-size: 33px; color: var(--ink); }
+.reveal .slides { text-align: left; }
+.reveal .slides section { height: 100%; padding: 0 8px; box-sizing: border-box; }
+.remark-container { font-family: var(--sans); }
+.remark-slide-content { font-family: var(--sans); font-size: 23px; color: var(--ink); background: var(--bg); padding: 0.9em 1.6em; }
+.remark-slide-number { color: var(--muted); font-size: 0.6em; }
+.reveal .slide-number { background: transparent; color: var(--muted); font-size: 14px; }
+
+/* ------------------------------------------------------------- typographie commune */
+.reveal h1, .reveal h2, .reveal h3,
+.remark-slide-content h1, .remark-slide-content h2, .remark-slide-content h3 {
+  font-family: var(--sans); color: var(--ink); text-transform: none; letter-spacing: -0.015em;
+  line-height: 1.15; margin: 0 0 0.45em; font-weight: 700; text-shadow: none;
+}
+.reveal h1, .remark-slide-content h1 { font-size: 2.2em; }
+.reveal h2, .remark-slide-content h2 { font-size: 1.45em; }
+.reveal h3, .remark-slide-content h3 { font-size: 1.05em; margin-bottom: 0.3em; }
+.reveal p, .remark-slide-content p { margin: 0 0 0.6em; line-height: 1.4; }
+.reveal ul, .reveal ol { display: block; margin: 0 0 0 1.1em; }
+.reveal li, .remark-slide-content li { line-height: 1.35; margin: 0.18em 0; }
+.remark-slide-content ul, .remark-slide-content ol { margin: 0 0 0 0.2em; padding-left: 1.1em; }
+.reveal strong, .remark-slide-content strong { font-weight: 700; }
+.reveal a, .remark-slide-content a { color: var(--accent); text-decoration: none; }
+.reveal code, .remark-slide-content code { font-family: var(--mono); font-size: 0.86em; }
+.reveal :not(pre) > code, .remark-slide-content :not(pre) > code { background: var(--soft); border-radius: 4px; padding: 0.05em 0.3em; }
+.reveal pre, .remark-slide-content pre {
+  width: 100%; margin: 0.3em 0 0.6em; box-shadow: none; line-height: 1.45;
+  border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; overflow: hidden; font-size: 0.66em;
+}
+.reveal pre code { max-height: none; padding: 0.8em 1em; background: #fafbfd; }
+.remark-code { font-family: var(--mono); font-size: 1em; padding: 0.8em 1em !important; background: #fafbfd !important; }
+.reveal table, .remark-slide-content table { border-collapse: collapse; width: 100%; font-size: 0.72em; margin: 0.2em 0 0.6em; }
+.reveal table th, .reveal table td, .remark-slide-content th, .remark-slide-content td {
+  border: 0; border-bottom: 1px solid var(--line); padding: 0.42em 0.6em; text-align: left; vertical-align: top;
+}
+.reveal table th, .remark-slide-content th { color: var(--muted); font-weight: 600; font-size: 0.92em; }
+.reveal img, .remark-slide-content img { max-width: 100%; }
+.reveal svg, .remark-slide-content svg { display: block; width: 100%; height: auto; }
+
+/* ------------------------------------------------------------- composants */
+.kicker { font-size: 0.55em; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.4em; }
+.kicker.pg { color: var(--pg); } .kicker.ch { color: var(--ch); }
+.muted { color: var(--muted); }
+.small { font-size: 0.72em; }
+.tiny { font-size: 0.55em; color: var(--muted); }
+.mono { font-family: var(--mono); }
+.center { text-align: center; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1em; align-items: start; }
+.cols.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.cols.c4 { grid-template-columns: repeat(4, 1fr); gap: 0.7em; }
+.cols.wide-left { grid-template-columns: 1.35fr 1fr; }
+.cols.wide-right { grid-template-columns: 1fr 1.35fr; }
+.card { border: 1px solid var(--line); border-radius: 14px; padding: 0.7em 0.9em; background: var(--bg); font-size: 0.82em; }
+.card h3 { font-size: 1.05em; }
+.card p:last-child, .card ul:last-child { margin-bottom: 0; }
+.card ul { margin-left: 1em; padding-left: 0.2em; }
+.card.soft { background: var(--soft); border-color: transparent; }
+.card.pg { background: var(--pg-soft); border-color: transparent; }
+.card.ch { background: var(--ch-soft); border-color: transparent; }
+.card.accent { background: var(--accent-soft); border-color: transparent; }
+.card.pg h3 { color: var(--pg); } .card.ch h3 { color: var(--ch); } .card.accent h3 { color: var(--accent); }
+.tag { display: inline-block; font-size: 0.7em; font-weight: 600; border-radius: 999px; padding: 0.12em 0.6em; margin: 0.1em 0.15em 0.1em 0; background: var(--soft); color: var(--ink); white-space: nowrap; }
+.tag.pg { background: var(--pg-soft); color: var(--pg); }
+.tag.ch { background: var(--ch-soft); color: var(--ch); }
+.tag.accent { background: var(--accent-soft); color: var(--accent); }
+.big { font-size: 2.4em; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.big.pg { color: var(--pg); } .big.ch { color: var(--ch); } .big.accent { color: var(--accent); } .big.bad { color: var(--bad); }
+.ok { color: var(--good); font-weight: 700; } .ko { color: var(--bad); font-weight: 700; } .mid { color: var(--warn); font-weight: 700; }
+.quote { font-size: 1.25em; line-height: 1.3; font-weight: 600; border-left: 6px solid var(--accent); padding-left: 0.7em; margin: 0.4em 0 0.8em; }
+.result { font-family: var(--mono); font-size: 0.68em; border: 1px solid var(--line); border-radius: 10px; padding: 0.6em 0.8em; background: #fafbfd; line-height: 1.55; }
+.result .hit { color: var(--good); font-weight: 700; }
+.result .zero { color: var(--bad); font-weight: 700; }
+.timeline { font-size: 0.68em; }
+.timeline .row { display: grid; grid-template-columns: 5.5em 1fr; gap: 0.8em; padding: 0.28em 0; border-bottom: 1px solid var(--line); }
+.timeline .row b { color: var(--accent); }
+.timeline .row.pg b { color: var(--pg); } .timeline .row.ch b { color: var(--ch); }
+.steps { counter-reset: s; font-size: 0.85em; }
+.steps > div { counter-increment: s; position: relative; padding: 0.35em 0 0.35em 2.2em; border-bottom: 1px solid var(--line); }
+.steps > div::before { content: counter(s); position: absolute; left: 0; top: 0.35em; width: 1.5em; height: 1.5em; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.85em; display: grid; place-items: center; }
+.demo-steps.pg > div::before { background: var(--pg); }
+.demo-steps.ch > div::before { background: var(--ch); }
+.footer-src { position: absolute; bottom: 0.6em; left: 1.6em; right: 1.6em; font-size: 0.5em; color: var(--muted); }
+.reveal .footer-src { left: 8px; bottom: 0; }
+.screenshot { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgba(20, 30, 60, 0.12); }
+
+/* ------------------------------------------------------------- slide de titre */
+.reveal section.title { display: flex !important; flex-direction: column; justify-content: center; }
+.remark-slide-content.title { vertical-align: middle; }
+.remark-slide-content.title { background: radial-gradient(circle at 85% 20%, var(--accent-soft), transparent 45%), var(--bg); }
+.title h1 { font-size: 2.6em; margin-bottom: 0.15em; }
+.title .subtitle { font-size: 1.15em; color: var(--muted); margin-bottom: 1.4em; }
+.title .authors { font-size: 0.9em; font-weight: 600; }
+.title .context { font-size: 0.7em; color: var(--muted); margin-top: 0.3em; }
+.title .duo { display: flex; gap: 0.5em; margin-bottom: 1.2em; }
+.title .duo span { font-size: 0.75em; font-weight: 700; padding: 0.25em 0.8em; border-radius: 999px; }
+.title .duo .p { background: var(--pg-soft); color: var(--pg); }
+.title .duo .c { background: var(--ch-soft); color: var(--ch); }
+
+/* ------------------------------------------------------------- slide de démo */
+.reveal section.demo, .remark-slide-content.demo { background: #10131a; color: #e8ebf2; }
+.reveal-viewport:has(section.demo.present) { background: #10131a; }
+.demo h1, .demo h2 { color: #fff !important; }
+.demo .kicker { color: var(--ch-strong); }
+.demo .kicker.pg { color: #8fc1ea; }
+.demo .steps > div { border-color: #283041; }
+.demo .muted, .demo .tiny { color: #9aa3b5; }
+.demo code { background: #1d2230 !important; color: #e8ebf2; }
+.demo .url { font-family: var(--mono); font-size: 0.8em; color: var(--ch-strong); }
+
+/* ------------------------------------------------------------- slide de section */
+.reveal section.section { display: flex !important; flex-direction: column; justify-content: center; }
+.remark-slide-content.section { vertical-align: middle; }
+.section .num { font-size: 4em; font-weight: 800; color: var(--accent-soft); line-height: 1; }
+.section h1 { margin-top: 0.1em; }
+
+/* ------------------------------------------------------------- impression PDF (reveal ?print-pdf) */
+@media print {
+  .reveal section.demo { background: #10131a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Pas de ligatures : « <=> » doit rester trois caractères, pas une flèche */
+.reveal code, .reveal pre, .remark-slide-content code, .remark-code, .mono, .result {
+  font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+}
+.quote.small { font-size: 0.9em; }

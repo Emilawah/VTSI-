@@ -1,0 +1,66 @@
+# Vector Search Arena — PostgreSQL + pgvector vs ClickHouse
+# Lancement :  docker compose up -d --build     puis  http://localhost:8000
+name: vector-arena
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: demo
+    # 5433 côté hôte pour ne pas entrer en conflit avec un PostgreSQL local
+    ports: ["5433:5432"]
+    # La construction parallèle d'un index HNSW utilise la mémoire partagée (64 Mo par défaut dans Docker)
+    shm_size: 2gb
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - max_parallel_maintenance_workers=4
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    environment:
+      CLICKHOUSE_USER: demo
+      CLICKHOUSE_PASSWORD: demo
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    # Interface SQL web intégrée : http://localhost:8123/play  (utilisateur demo / mot de passe demo)
+    ports: ["8123:8123"]
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    volumes:
+      - chdata:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "demo", "--password", "demo", "-q", "SELECT 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  app:
+    build: ./app
+    environment:
+      PG_DSN: postgresql://demo:demo@postgres:5432/demo
+      CH_HOST: clickhouse
+      CH_USER: demo
+      CH_PASSWORD: demo
+    ports: ["8000:8000"]
+    volumes:
+      - ./results:/app/results
+    depends_on:
+      postgres: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  chdata:

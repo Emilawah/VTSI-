@@ -1,0 +1,159 @@
+= Vector Databases : double démonstration avec PostgreSQL + pgvector et ClickHouse =
+
+* '''Auteurs''' : Marcus Sabon, Emilio Stien (Polytech Grenoble, INFO5)
+* '''UE''' : Veille technologique et stratégique (EAM / EAR) — 2026
+* '''Mots-clés''' : base de données vectorielle, embedding, recherche sémantique, ANN, HNSW, RAG, PostgreSQL, pgvector, ClickHouse
+
+== Résumé ==
+
+Les bases de données vectorielles stockent des ''embeddings'' (vecteurs de quelques centaines à quelques milliers de nombres produits par un réseau de neurones) et retrouvent rapidement les vecteurs les plus proches d'une requête. Elles sont la « mémoire » des applications d'IA générative (RAG), des moteurs de recommandation et de la recherche sémantique.
+
+Après la vague de bases spécialisées de 2019-2023 (Pinecone, Milvus, Qdrant, Weaviate…), le marché se consolide : toutes les bases généralistes ont ajouté un type vecteur et un index approché. Nous comparons deux représentants opposés de cette tendance : '''PostgreSQL + pgvector''' (base transactionnelle) et '''ClickHouse''' (base analytique en colonnes), avec une démonstration commune, un benchmark équitable et l'analyse d'un cas industriel, le blueprint JHipster ''generator-jhipster-ai-postgresql''.
+
+'''Conclusion''' : pour la majorité des applications, la base que l'on possède déjà suffit ; pgvector est le choix par défaut, ClickHouse s'impose quand la recherche vectorielle rencontre de gros volumes analytiques, et une base dédiée ne se justifie que par une mesure (volume, latence, coût).
+
+== Principes ==
+
+=== Embeddings ===
+Un modèle d'embedding transforme un texte (ou une image, un son) en vecteur de dimension ''d''. Deux contenus de sens proche donnent deux vecteurs proches, même sans mot commun et même dans deux langues différentes. La base ne calcule pas les embeddings : c'est l'application (modèle local ou API) qui les produit, la base les stocke et les compare.
+
+=== Distances ===
+{| class="wikitable"
+! Distance !! pgvector !! ClickHouse
+|-
+| Cosinus || <code><=></code> || <code>cosineDistance</code>
+|-
+| Euclidienne (L2) || <code><-></code> || <code>L2Distance</code>
+|-
+| Produit scalaire || <code><#></code> (négatif) || <code>dotProduct</code>
+|-
+| Manhattan (L1) || <code><+></code> || <code>L1Distance</code>
+|}
+Avec des vecteurs normalisés, cosinus, L2 et produit scalaire donnent le même classement. Une recherche s'écrit toujours <code>ORDER BY distance(vecteur, requête) LIMIT k</code> (k plus proches voisins).
+
+=== Recherche approchée (ANN) et HNSW ===
+La recherche exacte compare la requête à tous les vecteurs : 10 millions de vecteurs de 1 536 dimensions en float32 représentent 61 Go lus par requête. Les index ''Approximate Nearest Neighbors'' n'explorent qu'une partie des données et acceptent de rater quelques vrais voisins. La qualité se mesure par le '''recall@k''' (part des k vrais voisins retrouvés), toujours à mettre en regard de la latence.
+
+'''HNSW''' (''Hierarchical Navigable Small World'', Malkov & Yashunin, 2016) est devenu l'index de référence : un graphe de proximité à plusieurs couches, parcouru de façon gloutonne du haut (longs sauts) vers le bas (recherche locale). Paramètres : <code>M</code> (voisins par nœud), <code>ef_construction</code> (effort de construction), <code>ef_search</code> (effort de recherche, compromis recall / latence). Autres leviers : partitionnement IVF, quantification (bf16, int8, binaire), index sur disque (DiskANN).
+
+== Marché et positionnement stratégique ==
+
+=== Trois familles d'acteurs ===
+* '''Bases dédiées''' : Pinecone, Qdrant, Weaviate, Milvus / Zilliz, Chroma.
+* '''Bases existantes + vecteur''' : PostgreSQL / pgvector, ClickHouse, Elasticsearch, OpenSearch, MongoDB Atlas, Redis, Oracle Database 23ai, SQL Server 2025, DuckDB.
+* '''Stockage objet''' : Amazon S3 Vectors (disponibilité générale en décembre 2025, jusqu'à 2 milliards de vecteurs par index).
+
+=== Chronologie ===
+* 2016 : publication de HNSW.
+* 2019 : création de Pinecone ; Milvus publié en open source.
+* 2021 : première version de pgvector.
+* 2023 : effet ChatGPT ; Pinecone lève 100 M$ (valorisation 750 M$) ; pgvector 0.5 ajoute HNSW.
+* 2024 : pgvector 0.7 (<code>halfvec</code>, <code>sparsevec</code>, quantification binaire) puis 0.8 (''iterative index scans'').
+* Mai 2025 : Databricks rachète Neon (PostgreSQL serverless) pour environ 1 Md$.
+* Août 2025 : ClickHouse 25.8, index <code>vector_similarity</code> utilisable en production.
+* Janvier 2026 : ClickHouse lève 400 M$ (valorisation 15 Md$) et rachète Langfuse (observabilité des LLM).
+* 2026 : Qdrant annonce une série B de 50 M$ (presse spécialisée) ; Pinecone aurait exploré une cession (presse, 2025).
+* Octobre 2026 : pgvector 0.8.7 ; la 0.9 prépare des I/O asynchrones pour HNSW.
+
+=== Analyse ===
+Notre thèse : '''le vecteur devient un type de données plutôt qu'un produit''', comme le JSON avant lui. Arguments : chaque grande base l'a intégré, une seule source de vérité évite la synchronisation entre deux systèmes, les clouds le proposent en service managé, et la pression sur les prix s'accentue (S3 Vectors). Limites de cette thèse : à l'échelle du milliard de vecteurs et à forte charge, les bases dédiées gardent une avance (sharding, filtres, multi-tenant) et se repositionnent sur la recherche hybride, le serverless et les agents.
+
+== PostgreSQL + pgvector ==
+* Extension C open source (licence PostgreSQL), créée par Andrew Kane en 2021 ; version 0.8.7 en octobre 2026.
+* Types <code>vector</code> (jusqu'à 16 000 dimensions), <code>halfvec</code>, <code>bit</code>, <code>sparsevec</code> ; index HNSW et IVFFlat, indexables jusqu'à 2 000 dimensions en <code>vector</code> et 4 000 en <code>halfvec</code>.
+* Depuis 0.8 : ''iterative index scans'' pour ne pas perdre de résultats quand un <code>WHERE</code> filtre fortement.
+* Disponible sur AWS RDS / Aurora, Google Cloud SQL / AlloyDB, Azure Database for PostgreSQL, Supabase, Neon.
+* '''Forces''' : SQL complet (jointures, filtres), transactions ACID, aucune nouvelle infrastructure. '''Limites''' : index HNSW en mémoire, échelle confortable de l'ordre de quelques dizaines de millions de vecteurs par nœud.
+
+<syntaxhighlight lang="sql">
+CREATE EXTENSION vector;
+CREATE TABLE films (id int PRIMARY KEY, titre text, annee int, synopsis text, embedding vector(384));
+CREATE INDEX ON films USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+SELECT titre FROM films WHERE annee >= 2000 ORDER BY embedding <=> $1 LIMIT 5;
+</syntaxhighlight>
+
+=== Cas industriel : le blueprint JHipster ===
+''generator-jhipster-ai-postgresql'' (Saathratri, licence MIT, JHipster 9) génère une application Spring Boot / Angular à partir d'un modèle JDL : un champ annoté <code>@customAnnotation("VECTOR")</code> devient une colonne <code>vector(1536)</code> avec index HNSW (Liquibase) ; l'embedding est calculé avec Spring AI et OpenAI <code>text-embedding-3-small</code> à chaque création ou modification, recalculé au démarrage s'il manque, et une barre « AI Search » interroge pgvector avec un seuil de distance cosinus de 0,8.
+
+'''Regard critique''' :
+* (+) industrialisation complète (schéma, index, API, interface, tests), mode d'embedding factice et déterministe pour les tests ;
+* (−) appel HTTP vers OpenAI à l'intérieur de la transaction d'écriture : latence, coût, dépendance à un service externe ;
+* (−) données envoyées à un tiers hors UE : question RGPD et de souveraineté ;
+* (−) seuil 0,8 codé en dur et non calibré (une recherche « Boat » remonte « Cats — ''Usually don't prefer being in water'' ») ;
+* (−) un modèle de 3 072 dimensions dépasserait la limite d'indexation de <code>vector</code> (2 000) et imposerait <code>halfvec</code> ; changer de modèle impose de tout revectoriser ; pas de recherche hybride plein texte + vecteur.
+
+== ClickHouse ==
+* SGBD analytique en colonnes, open source (Apache 2.0), né chez Yandex (ouvert en 2016), société ClickHouse Inc. depuis 2021.
+* Vecteurs stockés en <code>Array(Float32)</code> (ou <code>BFloat16</code>, <code>Float64</code>) ; fonctions de distance vectorisées (SIMD) : la recherche exacte est déjà très rapide.
+* Index <code>vector_similarity</code> (HNSW, bibliothèque USearch) à partir de la version 25.8 ; graphe quantifié en bf16 par défaut (i8 et b1 possibles) avec recalcul en pleine précision ; type <code>QBit</code> dont la précision est choisie à la requête.
+* '''Forces''' : volumes massifs, compression, agrégats sur le résultat d'une recherche vectorielle dans la même requête. '''Limites''' : un graphe par part de table, index reconstruit à l'insertion et aux fusions, post-filtrage par défaut (peut renvoyer moins de k lignes), <code>LIMIT</code> ≤ 100 par défaut, pas de transactions multi-requêtes, mises à jour coûteuses.
+
+<syntaxhighlight lang="sql">
+CREATE TABLE films (id UInt32, titre String, annee UInt16, genre LowCardinality(String),
+    embedding Array(Float32),
+    INDEX idx embedding TYPE vector_similarity('hnsw', 'cosineDistance', 384)
+) ENGINE = MergeTree ORDER BY id;
+
+SELECT genre, count() AS nb FROM (
+    WITH {q:Array(Float32)} AS ref
+    SELECT genre FROM films ORDER BY cosineDistance(embedding, ref) LIMIT 20
+) GROUP BY genre ORDER BY nb DESC;
+</syntaxhighlight>
+
+== Démonstration ==
+Le kit de démonstration se lance avec <code>docker compose up</code> et ne nécessite ni clé d'API ni connexion le jour de la présentation :
+* PostgreSQL 17 + pgvector, ClickHouse 25.8, et une application Python (FastAPI) qui calcule les embeddings en local avec <code>paraphrase-multilingual-MiniLM-L12-v2</code> (384 dimensions, multilingue) ;
+* corpus de 91 films dont seuls le titre et le synopsis sont vectorisés ;
+* interface web comparant, pour une même requête, le plein texte PostgreSQL, pgvector et ClickHouse (SQL exécuté, latence, plan d'exécution), une projection 2D de l'espace vectoriel et les résultats du benchmark ;
+* scripts SQL à dérouler en direct : recherche sémantique, multilingue, hybride (filtres), transaction annulée, preuve d'utilisation de l'index (<code>EXPLAIN</code>), agrégats ClickHouse sur les plus proches voisins, recherche exacte sur un million de vecteurs.
+
+Exemple : la requête « un robot qui tombe amoureux » ne trouve rien en plein texte, alors que la recherche vectorielle remonte ''WALL-E'' et ''Her'', dont les synopsis ne contiennent aucun de ces mots.
+
+=== Benchmark ===
+Protocole identique pour les deux bases : 100 000 vecteurs synthétiques de 384 dimensions (en grappes, normalisés), vérité terrain par k-NN exact (NumPy), index HNSW avec M = 16 et ef_construction = 64 en float32, mesures de l'ingestion, de la construction d'index, de la latence p50 / p95 (un client) et du recall@10 pour plusieurs valeurs de ef_search. Les résultats mesurés figurent dans la présentation. Limites : données synthétiques, un seul client, une seule machine.
+
+== Comparaison ==
+{| class="wikitable"
+! Critère !! PostgreSQL + pgvector !! ClickHouse
+|-
+| Modèle || OLTP, stockage en lignes || OLAP, stockage en colonnes
+|-
+| Index ANN || HNSW, IVFFlat || HNSW (<code>vector_similarity</code>)
+|-
+| Transactions, mises à jour || natives || absentes / coûteuses
+|-
+| Filtres + vecteur || bons (iterative scans) || post-filtrage par défaut
+|-
+| Recherche exacte || correcte (parallèle) || excellente (SIMD, colonnes)
+|-
+| Agrégats sur les résultats || possibles, lents à grande échelle || point fort
+|-
+| Échelle confortable || quelques dizaines de millions || centaines de millions et plus
+|-
+| Offre managée || tous les clouds || ClickHouse Cloud, auto-hébergement
+|}
+
+=== Arbre de décision ===
+* Données métier dans PostgreSQL, besoin de transactions et de jointures, moins de quelques dizaines de millions de vecteurs → '''pgvector'''.
+* Logs, événements, traces de LLM, gros volumes en ajout, besoin d'analyser les résultats → '''ClickHouse'''.
+* Centaines de millions à milliards de vecteurs, forte charge, multi-tenant, équipe dédiée → '''base spécialisée'''.
+* Très gros volumes rarement interrogés, coût prioritaire → '''S3 Vectors'''.
+
+== Analyse critique ==
+* Les benchmarks publiés par les éditeurs servent leur marketing ; il faut mesurer sur ses propres données (ANN-Benchmarks, VectorDBBench, ou un protocole comme le nôtre).
+* Un bon recall n'est pas une bonne pertinence : un voisin « proche » n'est pas forcément la bonne réponse, d'où la nécessité d'évaluer avec des requêtes annotées.
+* La qualité dépend d'abord du modèle d'embedding et du découpage des documents, rarement de la base.
+* La recherche hybride (plein texte + vecteur, fusion RRF) surpasse souvent le vecteur seul.
+* Coûts cachés : mémoire de l'index, revectorisation complète lors d'un changement de modèle, appels d'API.
+* Un embedding n'est pas anonyme : des travaux montrent qu'on peut reconstruire une partie du texte d'origine (Morris et al., 2023) ; stocker des embeddings de données personnelles reste un traitement de données personnelles.
+
+== Références ==
+* pgvector — https://github.com/pgvector/pgvector (README et CHANGELOG)
+* ClickHouse, ''Exact and approximate vector search'' — https://clickhouse.com/docs/engines/table-engines/mergetree-family/annindexes
+* Blueprint JHipster — https://github.com/saathratri/generator-jhipster-ai-postgresql
+* Y. Malkov, D. Yashunin, ''Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs'', arXiv:1603.09320
+* J. Morris et al., ''Text Embeddings Reveal (Almost) As Much As Text'', EMNLP 2023
+* AWS, ''Amazon S3 Vectors is now generally available'' (décembre 2025) — https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-vectors-generally-available/
+* SiliconANGLE, ''Database maker ClickHouse raises $400M, acquires AI observability startup Langfuse'' (16 janvier 2026) — https://siliconangle.com/2026/01/16/database-maker-clickhouse-raises-400m-acquires-ai-observability-startup-langfuse/
+* ANN-Benchmarks — https://ann-benchmarks.com ; VectorDBBench — https://github.com/zilliztech/VectorDBBench
+* Modèle d'embedding — https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2

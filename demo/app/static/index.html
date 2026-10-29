@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vector Search Arena</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #14171f; --muted: #5d6475; --line: #e3e6ec;
+    --pg: #336791; --pg-soft: #e6eef6; --ch: #c99a00; --ch-soft: #fff6cc; --kw: #8a5a44; --kw-soft: #f6ece7;
+    --accent: #3f51b5; --good: #1d8a52; --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1218; --panel: #171b24; --ink: #e8ebf2; --muted: #9aa3b5; --line: #283041;
+      --pg: #7fb0dc; --pg-soft: #1b2a3a; --ch: #ffd84a; --ch-soft: #2f2a12; --kw: #d6a58e; --kw-soft: #2e221d; --accent: #8c9eff; --good: #4cc38a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 18px 24px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  h1 .pg { color: var(--pg); } h1 .ch { color: var(--ch); }
+  #status { color: var(--muted); font-size: 13px; }
+  nav { display: flex; gap: 4px; padding: 12px 24px 0; border-bottom: 1px solid var(--line); }
+  nav button { border: 0; background: none; color: var(--muted); padding: 10px 14px; font: inherit; cursor: pointer; border-bottom: 2px solid transparent; }
+  nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  main { padding: 18px 24px 40px; max-width: 1500px; margin: 0 auto; }
+  .tab { display: none; } .tab.on { display: block; }
+  form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  input, select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  #q { flex: 1 1 420px; font-size: 17px; }
+  button.go { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; cursor: pointer; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+  .chips button { font: inherit; font-size: 13px; background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .chips button:hover { color: var(--ink); border-color: var(--accent); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 12px; font-family: var(--mono); }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+  .col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .col > .head { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .col.kw > .head { background: var(--kw-soft); } .col.pg > .head { background: var(--pg-soft); } .col.ch > .head { background: var(--ch-soft); }
+  .col h2 { font-size: 15px; margin: 0; }
+  .col.kw h2 { color: var(--kw); } .col.pg h2 { color: var(--pg); } .col.ch h2 { color: var(--ch); }
+  .ms { font-family: var(--mono); font-size: 13px; font-weight: 600; background: var(--panel); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+  details { border-top: 1px solid var(--line); }
+  summary { cursor: pointer; padding: 8px 14px; font-size: 13px; color: var(--muted); }
+  pre { margin: 0; padding: 10px 14px 14px; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; color: var(--ink); }
+  ol { list-style: none; margin: 0; padding: 6px 0; }
+  li { padding: 8px 14px; border-top: 1px solid var(--line); }
+  li:first-child { border-top: 0; }
+  .t { font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .bar { height: 5px; background: var(--line); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; }
+  .pg .bar > i { background: var(--pg); } .ch .bar > i { background: var(--ch); } .kw .bar > i { background: var(--kw); }
+  .empty { padding: 18px 14px; color: var(--muted); font-style: italic; }
+  .btnx { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-top: 14px; }
+  .panel > .head { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .panel h2 { font-size: 15px; margin: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 14px; border-top: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #space-wrap { position: relative; }
+  #space { width: 100%; height: 620px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  #legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; font-size: 13px; color: var(--muted); }
+  #legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+  #tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 4px 8px; border-radius: 6px; display: none; max-width: 320px; }
+  .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px 0; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .kpi b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--muted); }
+  .bars { padding: 6px 14px 14px; }
+  .brow { display: grid; grid-template-columns: 190px 1fr 90px; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .brow .track { height: 14px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .brow .track i { display: block; height: 100%; }
+  .brow.pg i { background: var(--pg); } .brow.ch i { background: var(--ch); }
+  .brow .v { text-align: right; font-family: var(--mono); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Vector Search Arena — <span class="pg">PostgreSQL + pgvector</span> vs <span class="ch">ClickHouse</span></h1>
+  <div id="status">Connexion…</div>
+</header>
+<nav>
+  <button class="on" data-tab="search">Recherche</button>
+  <button data-tab="space">Espace vectoriel</button>
+  <button data-tab="bench">Benchmark</button>
+</nav>
+<main>
+  <!-- ======================================================= RECHERCHE -->
+  <section class="tab on" id="tab-search">
+    <form id="f">
+      <input id="q" placeholder="Décrivez le film que vous cherchez…" autocomplete="off" value="un robot qui tombe amoureux">
+      <select id="pays"><option value="">Tous les pays</option></select>
+      <select id="amin">
+        <option value="0">Toutes les années</option>
+        <option value="1980">Depuis 1980</option>
+        <option value="2000">Depuis 2000</option>
+        <option value="2010">Depuis 2010</option>
+      </select>
+      <select id="k"><option>3</option><option selected>5</option><option>10</option></select>
+      <button class="go">Rechercher</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <div class="meta" id="meta"></div>
+    <div class="grid">
+      <div class="col kw"><div class="head"><h2>Plein texte classique (PostgreSQL)</h2><span class="ms" id="ms-kw">–</span></div>
+        <ol id="r-kw"></ol><details><summary>SQL exécuté</summary><pre id="sql-kw"></pre></details></div>
+      <div class="col pg"><div class="head"><h2>PostgreSQL + pgvector</h2><span class="ms" id="ms-pg">–</span></div>
+        <ol id="r-pg"></ol><details><summary>SQL exécuté</summary><pre id="sql-pg"></pre></details>
+        <details data-engine="pgvector"><summary>Plan d'exécution (EXPLAIN ANALYZE)</summary><pre>…</pre></details></div>
+      <div class="col ch"><div class="head"><h2>ClickHouse</h2><span class="ms" id="ms-ch">–</span></div>
+        <ol id="r-ch"></ol><details><summary>SQL exécuté</summary><pre id="sql-ch"></pre></details>
+        <details data-engine="clickhouse"><summary>Plan d'exécution (EXPLAIN indexes = 1)</summary><pre>…</pre></details></div>
+    </div>
+    <div class="panel">
+      <div class="head"><h2>ClickHouse : analyse des 20 films les plus proches (vecteur + OLAP dans la même requête)</h2><span class="ms" id="ms-an">–</span></div>
+      <table><thead><tr><th>Genre</th><th class="num">Films</th><th class="num">Année moy.</th><th class="num">Meilleure distance</th><th>Décennies</th><th>Pays</th></tr></thead><tbody id="r-an"></tbody></table>
+      <details><summary>SQL exécuté</summary><pre id="sql-an"></pre></details>
+    </div>
+  </section>
+
+  <!-- ======================================================= ESPACE -->
+  <section class="tab" id="tab-space">
+    <form id="f2"><input id="q2" style="flex:1 1 420px" placeholder="Placer une requête dans l'espace…" value="survivre seul dans l'espace"><button class="go">Projeter</button></form>
+    <div id="legend"></div>
+    <div id="space-wrap"><canvas id="space"></canvas><div id="tip"></div></div>
+    <p class="note">Projection en 2 dimensions (analyse en composantes principales) des 384 dimensions réelles. Les films d'un même genre se regroupent alors que le modèle n'a vu que le titre et le synopsis, jamais le genre. Les traits relient la requête (★) à ses 5 plus proches voisins <em>calculés en 384 D</em> : en 2 D, certains paraissent loin — la projection déforme.</p>
+  </section>
+
+  <!-- ======================================================= BENCH -->
+  <section class="tab" id="tab-bench">
+    <div id="bench"></div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const EXAMPLES = [
+  "un robot qui tombe amoureux",
+  "voyager dans le temps",
+  "avoir peur dans une maison hantée",
+  "survivre seul dans l'espace",
+  "une équipe prépare un cambriolage",
+  "des rêves à l'intérieur de rêves",
+  "a heist movie with a clever crew",
+  "un film qui donne faim",
+  "l'amitié entre deux personnes que tout oppose",
+];
+const COLORS = ["#3f51b5", "#e53935", "#00897b", "#fb8c00", "#8e24aa", "#43a047", "#d81b60", "#546e7a", "#c0a000"];
+
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.id === "tab-" + b.dataset.tab));
+  if (b.dataset.tab === "space") drawSpace($("#q2").value);
+  if (b.dataset.tab === "bench") loadBench();
+});
+
+$("#chips").innerHTML = EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join("");
+$("#chips").onclick = (ev) => { if (ev.target.tagName === "BUTTON") { $("#q").value = ev.target.textContent; run(); } };
+
+async function health() {
+  try {
+    const h = await (await fetch("/api/health")).json();
+    if (!h.ready) { $("#status").textContent = h.message; setTimeout(health, 1500); return; }
+    $("#status").textContent = `PostgreSQL ${h.postgres} · pgvector ${h.pgvector} · ClickHouse ${h.clickhouse} · ${h.documents} films · modèle ${h.model.split("/").pop()} (${h.dimensions} D)`;
+    $("#pays").innerHTML += h.pays.map((v) => `<option>${esc(v)}</option>`).join("");
+    run();
+  } catch (e) { $("#status").textContent = "API injoignable, nouvel essai…"; setTimeout(health, 1500); }
+}
+
+function list(el, rows, kind) {
+  if (!rows.length) { el.innerHTML = `<div class="empty">Aucun résultat</div>`; return; }
+  const maxScore = Math.max(...rows.map((r) => r.score), 1e-9);
+  el.innerHTML = rows.map((r) => {
+    const sim = kind === "kw" ? r.score / maxScore : Math.max(0, 1 - r.score);
+    const lab = kind === "kw" ? `rang ts ${r.score.toFixed(3)}` : `distance ${r.score.toFixed(3)}`;
+    return `<li><div class="t">${esc(r.titre)}</div>
+      <div class="sub">${r.annee} · ${esc(r.realisateur)} · ${esc(r.genre)} · ${esc(r.pays)} · <span style="font-family:var(--mono)">${lab}</span></div>
+      <div class="bar"><i style="width:${(sim * 100).toFixed(1)}%"></i></div></li>`;
+  }).join("");
+}
+
+async function run(ev) {
+  if (ev) ev.preventDefault();
+  const p = new URLSearchParams({ q: $("#q").value, k: $("#k").value, pays: $("#pays").value, annee_min: $("#amin").value });
+  $("#meta").textContent = "Calcul…";
+  const r = await fetch("/api/search?" + p);
+  if (!r.ok) { $("#meta").textContent = (await r.json()).detail; return; }
+  const d = await r.json();
+  $("#meta").textContent = `embedding de la requête : ${d.embedding_ms} ms (CPU, local) → [${d.embedding_preview.join(", ")}, …]`;
+  for (const [key, id] of [["fulltext", "kw"], ["pgvector", "pg"], ["clickhouse", "ch"]]) {
+    list($("#r-" + id), d[key].rows, id);
+    $("#ms-" + id).textContent = d[key].ms + " ms";
+    $("#sql-" + id).textContent = d[key].sql;
+  }
+  $("#ms-an").textContent = d.analytics.ms + " ms";
+  $("#sql-an").textContent = d.analytics.sql;
+  $("#r-an").innerHTML = d.analytics.rows.map((a) => `<tr><td>${esc(a.genre)}</td><td class="num">${a.nb_films}</td><td class="num">${a.annee_moyenne}</td><td class="num">${a.meilleure_distance}</td><td class="sub">${a.decennies.map((x) => x + "s").join(", ")}</td><td class="sub">${a.liste_pays.map(esc).join(", ")}</td></tr>`).join("");
+  document.querySelectorAll("details[data-engine]").forEach((dt) => { dt.dataset.q = ""; if (dt.open) explain(dt); });
+}
+$("#f").onsubmit = run;
+
+async function explain(dt) {
+  const q = $("#q").value;
+  if (dt.dataset.q === q) return;
+  dt.dataset.q = q;
+  const pre = dt.querySelector("pre");
+  pre.textContent = "…";
+  const d = await (await fetch(`/api/explain?engine=${dt.dataset.engine}&q=${encodeURIComponent(q)}`)).json();
+  pre.textContent = d.sql + "\n\n" + d.plan;
+}
+document.querySelectorAll("details[data-engine]").forEach((dt) => dt.addEventListener("toggle", () => dt.open && explain(dt)));
+
+// ------------------------------------------------------------------ espace vectoriel
+let spaceData = null;
+async function drawSpace(q) {
+  const d = await (await fetch("/api/space?q=" + encodeURIComponent(q || ""))).json();
+  spaceData = d;
+  const doms = [...new Set(d.points.map((p) => p.genre))];
+  $("#legend").innerHTML = doms.map((m, i) => `<span style="--c:${COLORS[i % COLORS.length]}">${esc(m)}</span>`).join("") + (d.query ? `<span style="--c:var(--ink)">★ requête</span>` : "");
+  const cv = $("#space"), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
+  const all = d.points.concat(d.query ? [d.query] : []);
+  const xs = all.map((p) => p.x), ys = all.map((p) => p.y), pad = 40;
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const sx = (x) => pad + (x - x0) / (x1 - x0 || 1) * (W - 2 * pad);
+  const sy = (y) => H - pad - (y - y0) / (y1 - y0 || 1) * (H - 2 * pad);
+  const ink = getComputedStyle(document.body).color;
+  d.points.forEach((p) => { p.sx = sx(p.x); p.sy = sy(p.y); });
+  if (d.query) {
+    const qx = sx(d.query.x), qy = sy(d.query.y);
+    g.strokeStyle = ink; g.globalAlpha = .35; g.lineWidth = 1.2;
+    d.points.filter((p) => d.neighbours.includes(p.id)).forEach((p) => { g.beginPath(); g.moveTo(qx, qy); g.lineTo(p.sx, p.sy); g.stroke(); });
+    g.globalAlpha = 1;
+  }
+  d.points.forEach((p) => {
+    g.beginPath(); g.arc(p.sx, p.sy, d.neighbours && d.neighbours.includes(p.id) ? 8 : 6, 0, 7);
+    g.fillStyle = COLORS[doms.indexOf(p.genre) % COLORS.length]; g.fill();
+    if (d.neighbours && d.neighbours.includes(p.id)) { g.lineWidth = 2; g.strokeStyle = ink; g.stroke(); }
+  });
+  if (d.query) {
+    g.fillStyle = ink; g.font = "28px system-ui"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("★", sx(d.query.x), sy(d.query.y));
+  }
+}
+$("#f2").onsubmit = (ev) => { ev.preventDefault(); drawSpace($("#q2").value); };
+$("#space").onmousemove = (ev) => {
+  if (!spaceData) return;
+  const r = ev.target.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  const hit = spaceData.points.find((p) => Math.hypot(p.sx - x, p.sy - y) < 8);
+  const tip = $("#tip");
+  if (!hit) { tip.style.display = "none"; return; }
+  tip.style.display = "block"; tip.style.left = (x + 12) + "px"; tip.style.top = (y + 12) + "px";
+  tip.textContent = `${hit.titre} — ${hit.genre}`;
+};
+window.addEventListener("resize", () => { if ($("#tab-space").classList.contains("on")) drawSpace($("#q2").value); });
+
+// ------------------------------------------------------------------ benchmark
+async function loadBench() {
+  const d = await (await fetch("/api/bench")).json();
+  const el = $("#bench");
+  if (!d.available) {
+    el.innerHTML = `<div class="panel"><div class="head"><h2>Pas encore de résultats</h2></div><pre>docker compose exec app python bench.py              # 100 000 vecteurs × 384
+docker compose exec app python bench.py --n 1000000  # 1 million (plus long)</pre></div>`;
+    return;
+  }
+  const pg = d.postgres, ch = d.clickhouse, efs = d.ef_values.map(String);
+  const kpi = (label, a, b, unit) => `<div class="kpi"><small>${label}</small><b><span style="color:var(--pg)">${a}</span> <small>vs</small> <span style="color:var(--ch)">${b}</span> <small>${unit}</small></b></div>`;
+  const barBlock = (title, metric, unit, better) => {
+    const rows = [];
+    efs.forEach((ef) => { rows.push(["pg", `pgvector ef=${ef}`, pg.ann[ef][metric]]); rows.push(["ch", `ClickHouse ef=${ef}`, ch.ann[ef][metric]]); });
+    if (metric !== "recall") { rows.unshift(["ch", "ClickHouse exact", ch.exact[metric]]); rows.unshift(["pg", "pgvector exact", pg.exact[metric]]); }
+    const max = Math.max(...rows.map((r) => r[2]));
+    return `<div class="panel"><div class="head"><h2>${title}</h2><small class="sub">${better}</small></div><div class="bars">${rows.map(([c, l, v]) =>
+      `<div class="brow ${c}"><span>${l}</span><span class="track"><i style="width:${(v / max * 100).toFixed(1)}%"></i></span><span class="v">${v}${unit}</span></div>`).join("")}</div></div>`;
+  };
+  el.innerHTML = `
+    <p class="meta">${d.date} · ${d.n.toLocaleString("fr-FR")} vecteurs × ${d.dim} D · ${d.queries} requêtes · k = ${d.k} · HNSW M=${d.hnsw.m}, ef_construction=${d.hnsw.ef_construction} · ${esc(pg.version)} · ${esc(ch.version)}</p>
+    <div class="kpis">
+      ${kpi("Ingestion", pg.ingest_s, ch.ingest_s, "s")}
+      ${kpi("Construction de l'index HNSW", pg.index_build_s, ch.index_build_s, "s")}
+      ${kpi("Taille de l'index", pg.index_mb, ch.index_mb, "Mo")}
+      ${kpi("Recherche exacte (p50)", pg.exact.p50_ms, ch.exact.p50_ms, "ms")}
+    </div>
+    ${barBlock("Latence p50 par requête", "p50_ms", " ms", "plus court = mieux")}
+    ${barBlock("Recall@" + d.k + " (part des vrais voisins retrouvés)", "recall", "", "plus long = mieux")}
+    <div class="panel"><div class="head"><h2>Plans d'exécution capturés</h2></div><pre>-- PostgreSQL\n${esc(pg.plan)}\n\n-- ClickHouse\n${esc(ch.plan)}</pre></div>`;
+}
+
+health();
+</script>
+</body>
+</html>
