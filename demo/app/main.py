@@ -103,7 +103,7 @@ def search_fulltext(q, k, pays, annee_min):
         SELECT_COLS
         + "       ts_rank(to_tsvector('french', titre || ' ' || synopsis), q) AS score\n"
         "FROM films,\n"
-        "     replace(plainto_tsquery('french', %s)::text, '&', '|')::tsquery AS q\n"
+        "     (SELECT replace(plainto_tsquery('french', %s)::text, '&', '|')::tsquery AS q) AS t\n"
         "WHERE to_tsvector('french', titre || ' ' || synopsis) @@ q\n"
         f"{where}"
         f"ORDER BY score DESC\nLIMIT {int(k)}"
